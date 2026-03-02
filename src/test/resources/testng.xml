@@ -4,34 +4,41 @@
     <listeners>
         <listener class-name="io.qameta.allure.testng.AllureTestNg"/>
     </listeners>
-    <test name="GET Request Tests">
+
+    <test name="Posts Tests">
         <classes>
-            <class name="com.apitest.tests.GetRequestTests"/>
+            <class name="com.apitest.posts.PostTest"/>
         </classes>
     </test>
-    <test name="POST Request Tests">
+
+    <test name="Comments Tests">
         <classes>
-            <class name="com.apitest.tests.PostRequestTests"/>
+            <class name="com.apitest.comments.CommentTest"/>
         </classes>
     </test>
-    <test name="PUT Request Tests">
+
+    <test name="Albums Tests">
         <classes>
-            <class name="com.apitest.tests.PutRequestTests"/>
+            <class name="com.apitest.albums.AlbumTest"/>
         </classes>
     </test>
-    <test name="DELETE Request Tests">
+
+    <test name="Photos Tests">
         <classes>
-            <class name="com.apitest.tests.DeleteRequestTests"/>
+            <class name="com.apitest.photos.PhotoTest"/>
         </classes>
     </test>
-    <test name="User Endpoint Tests">
+
+    <test name="Todos Tests">
         <classes>
-            <class name="com.apitest.tests.UserTests"/>
+            <class name="com.apitest.todos.TodoTest"/>
         </classes>
     </test>
-    <test name="Negative Tests">
+
+    <test name="Users Tests">
         <classes>
-            <class name="com.apitest.tests.NegativeTests"/>
+            <class name="com.apitest.users.UserTest"/>
         </classes>
     </test>
+
 </suite>

@@ -1,17 +1,17 @@
-package com.apitest.models;
+package com.apitest.posts;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class Post {
+public class PostPayload {
     private Integer id;
     private Integer userId;
     private String title;
     private String body;
 
-    public Post() {}
+    public PostPayload() {}
 
-    public Post(Integer userId, String title, String body) {
+    public PostPayload(Integer userId, String title, String body) {
         this.userId = userId;
         this.title = title;
         this.body = body;
