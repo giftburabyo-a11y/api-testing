@@ -1,0 +1,32 @@
+<div>POST to https://jsonplaceholder.typicode.com/users</div>
+
+<h4>Body</h4>
+<div>
+    <pre class="preformated-text">
+{
+    &quot;website&quot;: &quot;automation.org&quot;,
+    &quot;phone&quot;: &quot;1-770-736-8031&quot;,
+    &quot;name&quot;: &quot;Test User&quot;,
+    &quot;email&quot;: &quot;testuser@automation.com&quot;,
+    &quot;username&quot;: &quot;testuser&quot;
+}    </pre>
+</div>
+
+<h4>Headers</h4>
+<div>
+        <div>Accept: */*</div>
+        <div>Content-Type: application/json</div>
+</div>
+
+
+
+<h4>Curl</h4>
+<div>
+curl -v -X POST &#39;https://jsonplaceholder.typicode.com/users&#39; -H &#39;Accept: */*&#39; -H &#39;Content-Type: application/json&#39; -d &#39;{
+    &quot;website&quot;: &quot;automation.org&quot;,
+    &quot;phone&quot;: &quot;1-770-736-8031&quot;,
+    &quot;name&quot;: &quot;Test User&quot;,
+    &quot;email&quot;: &quot;testuser@automation.com&quot;,
+    &quot;username&quot;: &quot;testuser&quot;
+}&#39;
+</div>
