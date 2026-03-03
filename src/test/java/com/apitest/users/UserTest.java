@@ -1,7 +1,7 @@
 package com.apitest.users;
 
+import com.apitest.base.BaseTest;
 import com.apitest.config.ApiConfig;
-import com.apitest.utils.RequestBuilder;
 import io.qameta.allure.*;
 import org.testng.annotations.Test;
 
@@ -9,102 +9,138 @@ import static io.restassured.RestAssured.*;
 import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchemaInClasspath;
 import static org.hamcrest.Matchers.*;
 
-@Epic("JSONPlaceholder API Tests")
 @Feature("Users")
-public class UserTest {
+public class UserTest extends BaseTest {
 
     @Test(priority = 1)
-    @Story("Get All Users") @Severity(SeverityLevel.BLOCKER)
+    @Severity(SeverityLevel.CRITICAL)
+    @Description("Verify GET /users returns all 10 users with valid fields")
     public void testGetAllUsers() {
-        given().spec(RequestBuilder.getRequestSpec())
-        .when().get(UserEndpoint.USERS)
+        given()
+            .spec(requestSpec)
+        .when()
+            .get(UserEndpoint.BASE)
         .then()
+            .spec(responseSpec)
             .statusCode(ApiConfig.STATUS_OK)
             .body("$", hasSize(10))
-            .body("[0].name", notNullValue())
-            .body("[0].email", notNullValue())
-            .body("[0].address", notNullValue())
-            .body("[0].company", notNullValue());
+            .body("id", everyItem(notNullValue()))
+            .body("email", everyItem(containsString("@")));
     }
 
-    @Test(priority = 2)
-    @Story("Get User By ID") @Severity(SeverityLevel.CRITICAL)
-    public void testGetUserById() {
-        given().spec(RequestBuilder.getRequestSpec())
-            .pathParam("id", UserDataProvider.getValidUserId())
-        .when().get(UserEndpoint.USER_BY_ID)
+    @Test(priority = 2, dataProvider = "validUserIds", dataProviderClass = UserDataProvider.class)
+    @Severity(SeverityLevel.CRITICAL)
+    @Description("Verify GET /users/{id} returns correct user data for valid IDs")
+    public void testGetUserById(int userId, String expectedName, String expectedUsername) {
+        given()
+            .spec(requestSpec)
+        .when()
+            .get(UserEndpoint.BASE + "/" + userId)
         .then()
+            .spec(responseSpec)
             .statusCode(ApiConfig.STATUS_OK)
-            .body("id", equalTo(1))
-            .body("name", notNullValue())
-            .body("email", notNullValue())
-            .body("address.city", notNullValue())
-            .body("company.name", notNullValue());
+            .body("id", equalTo(userId))
+            .body("name", equalTo(expectedName))
+            .body("username", equalTo(expectedUsername));
     }
 
     @Test(priority = 3)
-    @Story("User JSON Schema") @Severity(SeverityLevel.CRITICAL)
-    public void testUserJsonSchema() {
-        given().spec(RequestBuilder.getRequestSpec())
-            .pathParam("id", UserDataProvider.getValidUserId())
-        .when().get(UserEndpoint.USER_BY_ID)
+    @Severity(SeverityLevel.CRITICAL)
+    @Description("Verify response structure matches user JSON schema contract")
+    public void testUserSchemaValidation() {
+        given()
+            .spec(requestSpec)
+        .when()
+            .get(UserEndpoint.BASE + "/1")
         .then()
             .statusCode(ApiConfig.STATUS_OK)
             .body(matchesJsonSchemaInClasspath("schemas/user-schema.json"));
     }
 
-    @Test(priority = 4)
-    @Story("User Email Format") @Severity(SeverityLevel.NORMAL)
-    public void testUserEmailFormat() {
-        given().spec(RequestBuilder.getRequestSpec())
-        .when().get(UserEndpoint.USERS)
+    @Test(priority = 4, dataProvider = "invalidUserIds", dataProviderClass = UserDataProvider.class)
+    @Severity(SeverityLevel.NORMAL)
+    @Description("Verify GET /users/{id} returns 404 for non-existent IDs")
+    public void testGetUserNotFound(int invalidId) {
+        given()
+            .spec(requestSpec)
+        .when()
+            .get(UserEndpoint.BASE + "/" + invalidId)
         .then()
-            .statusCode(ApiConfig.STATUS_OK)
-            .body("email", everyItem(containsString("@")));
+            .statusCode(ApiConfig.STATUS_NOT_FOUND);
     }
 
     @Test(priority = 5)
-    @Story("Get User Posts") @Severity(SeverityLevel.NORMAL)
+    @Severity(SeverityLevel.NORMAL)
+    @Description("Verify GET /users/1/posts returns posts belonging to user 1")
     public void testGetUserPosts() {
-        given().spec(RequestBuilder.getRequestSpec())
-            .pathParam("id", UserDataProvider.getValidUserId())
-        .when().get(UserEndpoint.USER_POSTS)
+        given()
+            .spec(requestSpec)
+        .when()
+            .get(UserEndpoint.BASE + "/1/posts")
         .then()
+            .spec(responseSpec)
             .statusCode(ApiConfig.STATUS_OK)
             .body("$", hasSize(greaterThan(0)))
             .body("userId", everyItem(equalTo(1)));
     }
 
     @Test(priority = 6)
-    @Story("Get User Todos") @Severity(SeverityLevel.NORMAL)
+    @Severity(SeverityLevel.NORMAL)
+    @Description("Verify GET /users/1/todos returns todos belonging to user 1")
     public void testGetUserTodos() {
-        given().spec(RequestBuilder.getRequestSpec())
-            .pathParam("id", UserDataProvider.getValidUserId())
-        .when().get(UserEndpoint.USER_TODOS)
+        given()
+            .spec(requestSpec)
+        .when()
+            .get(UserEndpoint.BASE + "/1/todos")
         .then()
+            .spec(responseSpec)
             .statusCode(ApiConfig.STATUS_OK)
             .body("$", hasSize(greaterThan(0)))
             .body("userId", everyItem(equalTo(1)));
     }
 
     @Test(priority = 7)
-    @Story("Get User Albums") @Severity(SeverityLevel.NORMAL)
+    @Severity(SeverityLevel.NORMAL)
+    @Description("Verify GET /users/1/albums returns albums belonging to user 1")
     public void testGetUserAlbums() {
-        given().spec(RequestBuilder.getRequestSpec())
-            .pathParam("id", UserDataProvider.getValidUserId())
-        .when().get(UserEndpoint.USER_ALBUMS)
+        given()
+            .spec(requestSpec)
+        .when()
+            .get(UserEndpoint.BASE + "/1/albums")
         .then()
+            .spec(responseSpec)
             .statusCode(ApiConfig.STATUS_OK)
             .body("$", hasSize(greaterThan(0)))
             .body("userId", everyItem(equalTo(1)));
     }
 
     @Test(priority = 8)
-    @Story("Non Existent User") @Severity(SeverityLevel.NORMAL)
-    public void testGetNonExistentUser() {
-        given().spec(RequestBuilder.getRequestSpec())
-            .pathParam("id", UserDataProvider.getInvalidUserId())
-        .when().get(UserEndpoint.USER_BY_ID)
-        .then().statusCode(ApiConfig.STATUS_NOT_FOUND);
+    @Severity(SeverityLevel.CRITICAL)
+    @Description("Verify POST /users creates a new user and returns 201")
+    public void testCreateUser() {
+        given()
+            .spec(requestSpec)
+            .body(UserPayload.create())
+        .when()
+            .post(UserEndpoint.BASE)
+        .then()
+            .statusCode(ApiConfig.STATUS_CREATED)
+            .body("name", equalTo("Test User"))
+            .body("email", equalTo("testuser@automation.com"))
+            .body("id", notNullValue());
+    }
+
+    @Test(priority = 9)
+    @Severity(SeverityLevel.NORMAL)
+    @Description("Verify Content-Type header and response time are within expected bounds")
+    public void testUserHeaders() {
+        given()
+            .spec(requestSpec)
+        .when()
+            .get(UserEndpoint.BASE + "/1")
+        .then()
+            .statusCode(ApiConfig.STATUS_OK)
+            .header("Content-Type", containsString("application/json"))
+            .time(lessThan(ApiConfig.MAX_RESPONSE_TIME_MS));
     }
 }

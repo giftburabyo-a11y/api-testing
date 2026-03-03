@@ -1,24 +1,22 @@
 package com.apitest.albums;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.util.HashMap;
+import java.util.Map;
 
-@JsonIgnoreProperties(ignoreUnknown = true)
 public class AlbumPayload {
-    private Integer id;
-    private Integer userId;
-    private String title;
 
-    public AlbumPayload() {}
-
-    public AlbumPayload(Integer userId, String title) {
-        this.userId = userId;
-        this.title = title;
+    public static Map<String, Object> create() {
+        Map<String, Object> album = new HashMap<>();
+        album.put("userId", 1);
+        album.put("title", "Test Album Title");
+        return album;
     }
 
-    public Integer getId() { return id; }
-    public void setId(Integer id) { this.id = id; }
-    public Integer getUserId() { return userId; }
-    public void setUserId(Integer userId) { this.userId = userId; }
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
+    public static Map<String, Object> update() {
+        Map<String, Object> album = new HashMap<>();
+        album.put("userId", 1);
+        album.put("id", 1);
+        album.put("title", "Updated Album Title");
+        return album;
+    }
 }

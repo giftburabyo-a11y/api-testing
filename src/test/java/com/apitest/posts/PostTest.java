@@ -1,138 +1,144 @@
 package com.apitest.posts;
 
+import com.apitest.base.BaseTest;
 import com.apitest.config.ApiConfig;
-import com.apitest.utils.RequestBuilder;
 import io.qameta.allure.*;
-import io.restassured.response.Response;
 import org.testng.annotations.Test;
 
 import static io.restassured.RestAssured.*;
 import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchemaInClasspath;
 import static org.hamcrest.Matchers.*;
-import static org.testng.Assert.*;
 
-@Epic("JSONPlaceholder API Tests")
 @Feature("Posts")
-public class PostTest {
+public class PostTest extends BaseTest {
 
     @Test(priority = 1)
-    @Story("Get All Posts") @Severity(SeverityLevel.BLOCKER)
+    @Severity(SeverityLevel.CRITICAL)
+    @Description("Verify GET /posts returns all 100 posts with valid fields")
     public void testGetAllPosts() {
-        given().spec(RequestBuilder.getRequestSpec())
-        .when().get(PostEndpoint.POSTS)
+        given()
+            .spec(requestSpec)
+        .when()
+            .get(PostEndpoint.BASE)
         .then()
+            .spec(responseSpec)
             .statusCode(ApiConfig.STATUS_OK)
             .body("$", hasSize(100))
-            .body("[0].userId", notNullValue())
-            .body("[0].title", notNullValue())
-            .body("[0].body", notNullValue());
+            .body("id", everyItem(notNullValue()))
+            .body("title", everyItem(notNullValue()));
     }
 
-    @Test(priority = 2)
-    @Story("Get Post By ID") @Severity(SeverityLevel.CRITICAL)
-    public void testGetPostById() {
-        given().spec(RequestBuilder.getRequestSpec())
-            .pathParam("id", 1)
-        .when().get(PostEndpoint.POST_BY_ID)
+    @Test(priority = 2, dataProvider = "validPostIds", dataProviderClass = PostDataProvider.class)
+    @Severity(SeverityLevel.CRITICAL)
+    @Description("Verify GET /posts/{id} returns correct post data for valid IDs")
+    public void testGetPostById(int postId, int expectedUserId, String expectedTitleStart) {
+        given()
+            .spec(requestSpec)
+        .when()
+            .get(PostEndpoint.BASE + "/" + postId)
         .then()
+            .spec(responseSpec)
             .statusCode(ApiConfig.STATUS_OK)
-            .body("id", equalTo(1))
-            .body("userId", equalTo(1))
-            .body("title", notNullValue());
+            .body("id", equalTo(postId))
+            .body("userId", equalTo(expectedUserId))
+            .body("title", startsWith(expectedTitleStart));
     }
 
     @Test(priority = 3)
-    @Story("JSON Schema Validation") @Severity(SeverityLevel.CRITICAL)
-    public void testPostJsonSchema() {
-        given().spec(RequestBuilder.getRequestSpec())
-            .pathParam("id", 1)
-        .when().get(PostEndpoint.POST_BY_ID)
+    @Severity(SeverityLevel.CRITICAL)
+    @Description("Verify response structure matches post JSON schema contract")
+    public void testPostSchemaValidation() {
+        given()
+            .spec(requestSpec)
+        .when()
+            .get(PostEndpoint.BASE + "/1")
         .then()
             .statusCode(ApiConfig.STATUS_OK)
             .body(matchesJsonSchemaInClasspath("schemas/post-schema.json"));
     }
 
-    @Test(priority = 4)
-    @Story("Filter Posts By UserId") @Severity(SeverityLevel.NORMAL)
-    public void testFilterPostsByUserId() {
-        given().spec(RequestBuilder.getRequestSpec())
-            .queryParam("userId", 1)
-        .when().get(PostEndpoint.POSTS)
+    @Test(priority = 4, dataProvider = "invalidPostIds", dataProviderClass = PostDataProvider.class)
+    @Severity(SeverityLevel.NORMAL)
+    @Description("Verify GET /posts/{id} returns 404 for non-existent IDs")
+    public void testGetPostNotFound(int invalidId) {
+        given()
+            .spec(requestSpec)
+        .when()
+            .get(PostEndpoint.BASE + "/" + invalidId)
         .then()
-            .statusCode(ApiConfig.STATUS_OK)
-            .body("$", hasSize(greaterThan(0)))
-            .body("userId", everyItem(equalTo(1)));
+            .statusCode(ApiConfig.STATUS_NOT_FOUND);
     }
 
     @Test(priority = 5)
-    @Story("Create Post") @Severity(SeverityLevel.BLOCKER)
+    @Severity(SeverityLevel.CRITICAL)
+    @Description("Verify POST /posts creates a new post and returns 201 with correct data")
     public void testCreatePost() {
-        PostPayload newPost = PostDataProvider.createPost();
-        given().spec(RequestBuilder.getRequestSpec())
-            .body(newPost)
-        .when().post(PostEndpoint.POSTS)
+        given()
+            .spec(requestSpec)
+            .body(PostPayload.create())
+        .when()
+            .post(PostEndpoint.BASE)
         .then()
             .statusCode(ApiConfig.STATUS_CREATED)
-            .body("id", notNullValue())
-            .body("title", equalTo(newPost.getTitle()))
-            .body("userId", equalTo(newPost.getUserId()));
+            .body("title", equalTo("Automation Test Post"))
+            .body("userId", equalTo(1))
+            .body("id", notNullValue());
     }
 
     @Test(priority = 6)
-    @Story("Update Post") @Severity(SeverityLevel.CRITICAL)
+    @Severity(SeverityLevel.CRITICAL)
+    @Description("Verify PUT /posts/1 updates the post and returns 200 with updated data")
     public void testUpdatePost() {
-        PostPayload updatedPost = PostDataProvider.updatePost();
-        given().spec(RequestBuilder.getRequestSpec())
-            .pathParam("id", 1)
-            .body(updatedPost)
-        .when().put(PostEndpoint.POST_BY_ID)
+        given()
+            .spec(requestSpec)
+            .body(PostPayload.update())
+        .when()
+            .put(PostEndpoint.BASE + "/1")
         .then()
+            .spec(responseSpec)
             .statusCode(ApiConfig.STATUS_OK)
-            .body("id", equalTo(1))
-            .body("title", equalTo(updatedPost.getTitle()));
+            .body("title", equalTo("Updated Post Title"))
+            .body("id", equalTo(1));
     }
 
     @Test(priority = 7)
-    @Story("Patch Post") @Severity(SeverityLevel.NORMAL)
+    @Severity(SeverityLevel.NORMAL)
+    @Description("Verify PATCH /posts/1 partially updates the post")
     public void testPatchPost() {
-        given().spec(RequestBuilder.getRequestSpec())
-            .pathParam("id", 1)
-            .body(PostDataProvider.patchPost())
-        .when().patch(PostEndpoint.POST_BY_ID)
+        given()
+            .spec(requestSpec)
+            .body(PostPayload.patch())
+        .when()
+            .patch(PostEndpoint.BASE + "/1")
         .then()
+            .spec(responseSpec)
             .statusCode(ApiConfig.STATUS_OK)
-            .body("id", equalTo(1))
             .body("title", equalTo("Patched Title - REST Assured"));
     }
 
     @Test(priority = 8)
-    @Story("Delete Post") @Severity(SeverityLevel.BLOCKER)
+    @Severity(SeverityLevel.CRITICAL)
+    @Description("Verify DELETE /posts/1 returns 200 confirming deletion")
     public void testDeletePost() {
-        given().spec(RequestBuilder.getRequestSpec())
-            .pathParam("id", 1)
-        .when().delete(PostEndpoint.POST_BY_ID)
-        .then().statusCode(ApiConfig.STATUS_OK);
+        given()
+            .spec(requestSpec)
+        .when()
+            .delete(PostEndpoint.BASE + "/1")
+        .then()
+            .statusCode(ApiConfig.STATUS_OK);
     }
 
     @Test(priority = 9)
-    @Story("Post Comments") @Severity(SeverityLevel.NORMAL)
-    public void testGetPostComments() {
-        given().spec(RequestBuilder.getRequestSpec())
-            .pathParam("id", 1)
-        .when().get(PostEndpoint.POST_COMMENTS)
+    @Severity(SeverityLevel.NORMAL)
+    @Description("Verify Content-Type header is JSON and response time is under threshold")
+    public void testPostHeaders() {
+        given()
+            .spec(requestSpec)
+        .when()
+            .get(PostEndpoint.BASE + "/1")
         .then()
             .statusCode(ApiConfig.STATUS_OK)
-            .body("$", hasSize(greaterThan(0)))
-            .body("[0].postId", equalTo(1))
-            .body("[0].email", notNullValue());
-    }
-
-    @Test(priority = 10)
-    @Story("Non Existent Post") @Severity(SeverityLevel.NORMAL)
-    public void testGetNonExistentPost() {
-        given().spec(RequestBuilder.getRequestSpec())
-            .pathParam("id", 99999)
-        .when().get(PostEndpoint.POST_BY_ID)
-        .then().statusCode(ApiConfig.STATUS_NOT_FOUND);
+            .header("Content-Type", containsString("application/json"))
+            .time(lessThan(ApiConfig.MAX_RESPONSE_TIME_MS));
     }
 }

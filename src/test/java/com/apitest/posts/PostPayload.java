@@ -1,28 +1,30 @@
 package com.apitest.posts;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.util.HashMap;
+import java.util.Map;
 
-@JsonIgnoreProperties(ignoreUnknown = true)
 public class PostPayload {
-    private Integer id;
-    private Integer userId;
-    private String title;
-    private String body;
 
-    public PostPayload() {}
-
-    public PostPayload(Integer userId, String title, String body) {
-        this.userId = userId;
-        this.title = title;
-        this.body = body;
+    public static Map<String, Object> create() {
+        Map<String, Object> post = new HashMap<>();
+        post.put("userId", 1);
+        post.put("title", "Automation Test Post");
+        post.put("body", "This post was created by REST Assured automation.");
+        return post;
     }
 
-    public Integer getId() { return id; }
-    public void setId(Integer id) { this.id = id; }
-    public Integer getUserId() { return userId; }
-    public void setUserId(Integer userId) { this.userId = userId; }
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
-    public String getBody() { return body; }
-    public void setBody(String body) { this.body = body; }
+    public static Map<String, Object> update() {
+        Map<String, Object> post = new HashMap<>();
+        post.put("id", 1);
+        post.put("userId", 1);
+        post.put("title", "Updated Post Title");
+        post.put("body", "Updated post body content.");
+        return post;
+    }
+
+    public static Map<String, Object> patch() {
+        Map<String, Object> post = new HashMap<>();
+        post.put("title", "Patched Title - REST Assured");
+        return post;
+    }
 }

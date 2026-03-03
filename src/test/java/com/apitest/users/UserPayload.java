@@ -1,28 +1,17 @@
 package com.apitest.users;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.util.HashMap;
+import java.util.Map;
 
-@JsonIgnoreProperties(ignoreUnknown = true)
 public class UserPayload {
-    private Integer id;
-    private String name;
-    private String username;
-    private String email;
-    private String phone;
-    private String website;
 
-    public UserPayload() {}
-
-    public Integer getId() { return id; }
-    public void setId(Integer id) { this.id = id; }
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-    public String getUsername() { return username; }
-    public void setUsername(String username) { this.username = username; }
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
-    public String getPhone() { return phone; }
-    public void setPhone(String phone) { this.phone = phone; }
-    public String getWebsite() { return website; }
-    public void setWebsite(String website) { this.website = website; }
+    public static Map<String, Object> create() {
+        Map<String, Object> user = new HashMap<>();
+        user.put("name", "Test User");
+        user.put("username", "testuser");
+        user.put("email", "testuser@automation.com");
+        user.put("phone", "1-770-736-8031");
+        user.put("website", "automation.org");
+        return user;
+    }
 }

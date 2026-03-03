@@ -1,7 +1,5 @@
 package com.apitest.albums;
 
 public class AlbumEndpoint {
-    public static final String ALBUMS = "/albums";
-    public static final String ALBUM_BY_ID = "/albums/{id}";
-    public static final String ALBUM_PHOTOS = "/albums/{id}/photos";
+    public static final String BASE = "/albums";
 }

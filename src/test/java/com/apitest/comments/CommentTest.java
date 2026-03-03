@@ -1,81 +1,103 @@
 package com.apitest.comments;
 
+import com.apitest.base.BaseTest;
 import com.apitest.config.ApiConfig;
-import com.apitest.utils.RequestBuilder;
 import io.qameta.allure.*;
 import org.testng.annotations.Test;
 
 import static io.restassured.RestAssured.*;
 import static org.hamcrest.Matchers.*;
 
-@Epic("JSONPlaceholder API Tests")
 @Feature("Comments")
-public class CommentTest {
+public class CommentTest extends BaseTest {
 
     @Test(priority = 1)
-    @Story("Get All Comments") @Severity(SeverityLevel.BLOCKER)
+    @Severity(SeverityLevel.CRITICAL)
+    @Description("Verify GET /comments returns all 500 comments with valid fields")
     public void testGetAllComments() {
-        given().spec(RequestBuilder.getRequestSpec())
-        .when().get(CommentEndpoint.COMMENTS)
+        given()
+            .spec(requestSpec)
+        .when()
+            .get(CommentEndpoint.BASE)
         .then()
+            .spec(responseSpec)
             .statusCode(ApiConfig.STATUS_OK)
             .body("$", hasSize(500))
-            .body("[0].postId", notNullValue())
-            .body("[0].email", notNullValue())
-            .body("[0].body", notNullValue());
+            .body("id", everyItem(notNullValue()))
+            .body("email", everyItem(containsString("@")));
     }
 
-    @Test(priority = 2)
-    @Story("Get Comment By ID") @Severity(SeverityLevel.CRITICAL)
-    public void testGetCommentById() {
-        given().spec(RequestBuilder.getRequestSpec())
-            .pathParam("id", CommentDataProvider.getValidCommentId())
-        .when().get(CommentEndpoint.COMMENT_BY_ID)
+    @Test(priority = 2, dataProvider = "validCommentIds", dataProviderClass = CommentDataProvider.class)
+    @Severity(SeverityLevel.CRITICAL)
+    @Description("Verify GET /comments/{id} returns correct comment for valid IDs")
+    public void testGetCommentById(int commentId, int expectedPostId, String expectedName) {
+        given()
+            .spec(requestSpec)
+        .when()
+            .get(CommentEndpoint.BASE + "/" + commentId)
         .then()
+            .spec(responseSpec)
             .statusCode(ApiConfig.STATUS_OK)
-            .body("id", equalTo(1))
-            .body("postId", notNullValue())
-            .body("email", containsString("@"));
+            .body("id", equalTo(commentId))
+            .body("postId", equalTo(expectedPostId))
+            .body("name", equalTo(expectedName));
     }
 
     @Test(priority = 3)
-    @Story("Filter Comments By PostId") @Severity(SeverityLevel.NORMAL)
+    @Severity(SeverityLevel.NORMAL)
+    @Description("Verify GET /comments?postId=1 returns only comments for that post")
     public void testFilterCommentsByPostId() {
-        given().spec(RequestBuilder.getRequestSpec())
-            .queryParam("postId", CommentDataProvider.getValidPostId())
-        .when().get(CommentEndpoint.COMMENTS)
+        given()
+            .spec(requestSpec)
+            .queryParam("postId", 1)
+        .when()
+            .get(CommentEndpoint.BASE)
         .then()
+            .spec(responseSpec)
             .statusCode(ApiConfig.STATUS_OK)
             .body("$", hasSize(greaterThan(0)))
             .body("postId", everyItem(equalTo(1)));
     }
 
-    @Test(priority = 4)
-    @Story("Comment Email Format") @Severity(SeverityLevel.NORMAL)
-    public void testCommentEmailFormat() {
-        given().spec(RequestBuilder.getRequestSpec())
-        .when().get(CommentEndpoint.COMMENTS)
+    @Test(priority = 4, dataProvider = "invalidCommentIds", dataProviderClass = CommentDataProvider.class)
+    @Severity(SeverityLevel.NORMAL)
+    @Description("Verify GET /comments/{id} returns 404 for non-existent IDs")
+    public void testGetCommentNotFound(int invalidId) {
+        given()
+            .spec(requestSpec)
+        .when()
+            .get(CommentEndpoint.BASE + "/" + invalidId)
         .then()
-            .statusCode(ApiConfig.STATUS_OK)
-            .body("email", everyItem(containsString("@")));
+            .statusCode(ApiConfig.STATUS_NOT_FOUND);
     }
 
     @Test(priority = 5)
-    @Story("Non Existent Comment") @Severity(SeverityLevel.NORMAL)
-    public void testGetNonExistentComment() {
-        given().spec(RequestBuilder.getRequestSpec())
-            .pathParam("id", CommentDataProvider.getInvalidCommentId())
-        .when().get(CommentEndpoint.COMMENT_BY_ID)
-        .then().statusCode(ApiConfig.STATUS_NOT_FOUND);
+    @Severity(SeverityLevel.CRITICAL)
+    @Description("Verify POST /comments creates a new comment and returns 201")
+    public void testCreateComment() {
+        given()
+            .spec(requestSpec)
+            .body(CommentPayload.create())
+        .when()
+            .post(CommentEndpoint.BASE)
+        .then()
+            .statusCode(ApiConfig.STATUS_CREATED)
+            .body("postId", equalTo(1))
+            .body("email", equalTo("test@automation.com"))
+            .body("id", notNullValue());
     }
 
     @Test(priority = 6)
-    @Story("Response Time") @Severity(SeverityLevel.MINOR)
-    public void testCommentsResponseTime() {
-        given().spec(RequestBuilder.getRequestSpec())
-        .when().get(CommentEndpoint.COMMENTS)
+    @Severity(SeverityLevel.NORMAL)
+    @Description("Verify Content-Type header and response time are within expected bounds")
+    public void testCommentHeaders() {
+        given()
+            .spec(requestSpec)
+        .when()
+            .get(CommentEndpoint.BASE + "/1")
         .then()
             .statusCode(ApiConfig.STATUS_OK)
-            .time(lessThan(5000L));
+            .header("Content-Type", containsString("application/json"))
+            .time(lessThan(ApiConfig.MAX_RESPONSE_TIME_MS));
     }
 }

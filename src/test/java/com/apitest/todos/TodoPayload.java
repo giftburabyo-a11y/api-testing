@@ -1,22 +1,24 @@
 package com.apitest.todos;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.util.HashMap;
+import java.util.Map;
 
-@JsonIgnoreProperties(ignoreUnknown = true)
 public class TodoPayload {
-    private Integer id;
-    private Integer userId;
-    private String title;
-    private Boolean completed;
 
-    public TodoPayload() {}
+    public static Map<String, Object> create() {
+        Map<String, Object> todo = new HashMap<>();
+        todo.put("userId", 1);
+        todo.put("title", "Test Todo Item");
+        todo.put("completed", false);
+        return todo;
+    }
 
-    public Integer getId() { return id; }
-    public void setId(Integer id) { this.id = id; }
-    public Integer getUserId() { return userId; }
-    public void setUserId(Integer userId) { this.userId = userId; }
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
-    public Boolean getCompleted() { return completed; }
-    public void setCompleted(Boolean completed) { this.completed = completed; }
+    public static Map<String, Object> update() {
+        Map<String, Object> todo = new HashMap<>();
+        todo.put("id", 1);
+        todo.put("userId", 1);
+        todo.put("title", "Updated Todo Item");
+        todo.put("completed", true);
+        return todo;
+    }
 }
