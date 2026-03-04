@@ -1,36 +1,49 @@
 name: REST Assured API Test CI/CD
 
+# ── Triggers ────────────────────────────────────────────────────────────────
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main ]
   pull_request:
     branches: [ main ]
   schedule:
     - cron: '0 8 * * *'
   workflow_dispatch:
 
+# ── Permissions ──────────────────────────────────────────────────────────────
 permissions:
   contents: write
   checks: write
   pull-requests: write
   pages: write
   id-token: write
+  packages: write
 
+# ── Jobs ─────────────────────────────────────────────────────────────────────
 jobs:
+
+  # ============================================================
+  # JOB 1 — Run API Tests
+  # ============================================================
   api-tests:
     name: Run API Tests
     runs-on: ubuntu-latest
+
     steps:
+
+      # 1. Check out the repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK 11
+      # 2. Set up Java
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: '11'
+          java-version: '21'
           distribution: 'temurin'
           cache: maven
 
+      # 3. Cache Maven dependencies
       - name: Cache Maven packages
         uses: actions/cache@v4
         with:
@@ -39,9 +52,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
+      # 4. Run tests
       - name: Run Tests with Maven
+        id: run-tests
         run: mvn test -B --no-transfer-progress -Dmaven.test.failure.ignore=true
 
+      # 5. Parse test results from Surefire XML reports
       - name: Parse test results
         if: always()
         id: parse-results
@@ -67,6 +83,7 @@ jobs:
           echo "errors=$ERRORS"     >> $GITHUB_OUTPUT
           echo "pass_pct=$PASS_PCT" >> $GITHUB_OUTPUT
 
+      # 6. Upload raw Allure results so the next job can generate the report
       - name: Upload Allure Results
         uses: actions/upload-artifact@v4
         if: always()
@@ -75,6 +92,7 @@ jobs:
           path: target/allure-results
           retention-days: 30
 
+      # 7. Upload Surefire XML reports as a separate downloadable artifact
       - name: Upload Surefire Reports
         uses: actions/upload-artifact@v4
         if: always()
@@ -83,6 +101,7 @@ jobs:
           path: target/surefire-reports/
           retention-days: 14
 
+      # 8. Send HTML email report via Gmail SMTP
       - name: Send email report
         if: always()
         env:
@@ -116,6 +135,7 @@ jobs:
           commit_url = os.environ.get("COMMIT_URL", "")
           short_sha  = os.environ.get("SHORT_SHA", "")
           event    = os.environ.get("EVENT", "push")
+          pages_url  = os.environ.get("PAGES_URL", "")
           triggers = {"push": "Push to branch", "pull_request": "Pull Request", "workflow_dispatch": "Manual trigger", "schedule": "Scheduled run"}
           trigger  = triggers.get(event, event)
 
@@ -162,6 +182,13 @@ jobs:
                       "</div></div>"
                   )
 
+          # Include the live report link in the email if available
+          report_btn = ""
+          if pages_url:
+              report_btn = ("<a href='" + pages_url + "' style='display:inline-block;background:#00897b;color:#fff;"
+                  "text-decoration:none;padding:14px 28px;border-radius:6px;font-size:14px;font-weight:700;margin:5px'>"
+                  "View Live Allure Report</a>")
+
           html = (
               "<!DOCTYPE html><html><head><meta charset='UTF-8'></head>"
               "<body style='margin:0;padding:0;background:#f4f6f9;font-family:Arial,sans-serif'>"
@@ -181,7 +208,8 @@ jobs:
               "<tr><td style='padding:9px 14px;font-weight:600;color:#555'>Branch</td><td style='padding:9px 14px'>" + branch + "</td></tr>"
               "<tr><td style='padding:9px 14px;font-weight:600;color:#555'>Commit</td><td style='padding:9px 14px'><a href='" + commit_url + "' style='color:#1a237e'>" + short_sha + "</a></td></tr>"
               "<tr><td style='padding:9px 14px;font-weight:600;color:#555'>Triggered by</td><td style='padding:9px 14px'>" + actor + " (" + trigger + ")</td></tr>"
-              "<tr><td style='padding:9px 14px;font-weight:600;color:#555'>Environment</td><td style='padding:9px 14px'>ubuntu-latest - Java 11 - REST Assured</td></tr>"
+              "<tr><td style='padding:9px 14px;font-weight:600;color:#555'>Environment</td><td style='padding:9px 14px'>ubuntu-latest - Java 21 - REST Assured</td></tr>"
+              + ("<tr><td style='padding:9px 14px;font-weight:600;color:#555'>Live Report</td><td style='padding:9px 14px'><a href='" + pages_url + "' style='color:#1a237e'>" + pages_url + "</a></td></tr>" if pages_url else "") +
               "</table>"
               "<h2 style='color:#1a237e'>Test Summary</h2>"
               "<table width='100%' cellpadding='6' cellspacing='6' style='margin-bottom:12px'><tr>"
@@ -198,7 +226,7 @@ jobs:
               "<div style='background:#f5f7ff;border-radius:8px;padding:16px 20px;font-size:13px;color:#333'>" + next_steps + "</div>"
               "<div style='text-align:center;margin-top:32px'>"
               "<a href='" + run_url + "' style='display:inline-block;background:#1a237e;color:#fff;text-decoration:none;padding:14px 28px;border-radius:6px;font-size:14px;font-weight:700;margin:5px'>View Run on GitHub</a>"
-              "<a href='" + run_url + "#artifacts' style='display:inline-block;background:#3949ab;color:#fff;text-decoration:none;padding:14px 28px;border-radius:6px;font-size:14px;font-weight:700;margin:5px'>Download Allure Report</a>"
+              + report_btn +
               "</div></td></tr>"
               "<tr><td style='background:#f5f7ff;border-radius:0 0 10px 10px;padding:16px 36px;text-align:center'>"
               "<p style='margin:0;font-size:11px;color:#9e9e9e'>Generated by REST Assured API CI pipeline</p>"
@@ -229,8 +257,10 @@ jobs:
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
           COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}" \
           SHORT_SHA="${{ github.sha }}" \
+          PAGES_URL="https://giftburabyo-a11y.github.io/${{ github.event.repository.name }}/" \
           python3 /tmp/send_email.py
 
+      # 9. Send Slack report
       - name: Send Slack report
         if: always()
         env:
@@ -257,6 +287,7 @@ jobs:
           sha      = os.environ.get("SHORT_SHA", "")[:7]
           event    = os.environ.get("EVENT", "push")
           repo     = os.environ.get("REPO", "")
+          pages_url = os.environ.get("PAGES_URL", "")
           triggers = {"push": "Push to branch", "pull_request": "Pull Request", "workflow_dispatch": "Manual trigger", "schedule": "Scheduled run"}
           trigger  = triggers.get(event, event)
           is_pass  = int(failed) == 0 and int(errors) == 0
@@ -308,7 +339,7 @@ jobs:
                   {"type": "mrkdwn", "text": "*Triggered by*\n" + actor + " (" + trigger + ")"},
                   {"type": "mrkdwn", "text": "*Commit*\n`" + sha + "`"},
                   {"type": "mrkdwn", "text": "*Run*\n<" + run_url + "|Run #" + run_num + ">"},
-                  {"type": "mrkdwn", "text": "*Environment*\nubuntu-latest - Java 11 - REST Assured"},
+                  {"type": "mrkdwn", "text": "*Environment*\nubuntu-latest - Java 21 - REST Assured"},
               ]},
               {"type": "section", "text": {"type": "mrkdwn", "text": (
                   "*Test Summary*\n"
@@ -316,6 +347,12 @@ jobs:
                   "Skipped: *" + skipped + "*   Total: *" + total + "*   Pass rate: *" + pass_pct + "%*"
               )}},
           ]
+
+          if pages_url:
+              blocks.append({
+                  "type": "section",
+                  "text": {"type": "mrkdwn", "text": "*Live Allure Report*\n<" + pages_url + "|View Full Report on GitHub Pages>"}
+              })
 
           if failing_tests:
               blocks += [
@@ -328,7 +365,9 @@ jobs:
 
           blocks += [
               {"type": "divider"},
-              {"type": "actions", "elements": [{"type": "button", "text": {"type": "plain_text", "text": "View Full Run on GitHub", "emoji": True}, "url": run_url, "style": "primary"}]}
+              {"type": "actions", "elements": [
+                  {"type": "button", "text": {"type": "plain_text", "text": "View Run on GitHub", "emoji": True}, "url": run_url, "style": "primary"},
+              ] + ([{"type": "button", "text": {"type": "plain_text", "text": "View Allure Report", "emoji": True}, "url": pages_url}] if pages_url else [])}
           ]
 
           payload = {"text": "REST Assured API Tests " + s_label + " - Run #" + run_num,
@@ -352,36 +391,50 @@ jobs:
           REPO="${{ github.repository }}" \
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
           SHORT_SHA="${{ github.sha }}" \
+          PAGES_URL="https://giftburabyo-a11y.github.io/${{ github.event.repository.name }}/" \
           python3 /tmp/send_slack.py
 
+      # 10. Write job summary to GitHub Actions UI
       - name: Summary
         if: always()
         run: |
           echo "## REST Assured API Test Results" >> $GITHUB_STEP_SUMMARY
-          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Total  | ${{ steps.parse-results.outputs.total }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Passed | ${{ steps.parse-results.outputs.passed }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Failed | ${{ steps.parse-results.outputs.failed }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Errors | ${{ steps.parse-results.outputs.errors }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Skipped| ${{ steps.parse-results.outputs.skipped }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Pass % | ${{ steps.parse-results.outputs.pass_pct }}% |" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric  | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Total   | ${{ steps.parse-results.outputs.total }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Passed  | ${{ steps.parse-results.outputs.passed }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Failed  | ${{ steps.parse-results.outputs.failed }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Errors  | ${{ steps.parse-results.outputs.errors }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Skipped | ${{ steps.parse-results.outputs.skipped }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Pass %  | ${{ steps.parse-results.outputs.pass_pct }}% |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Live Allure Report" >> $GITHUB_STEP_SUMMARY
+          echo "https://giftburabyo-a11y.github.io/${{ github.event.repository.name }}/" >> $GITHUB_STEP_SUMMARY
 
+  # ============================================================
+  # JOB 2 — Generate and Deploy Allure Report to GitHub Pages
+  # ============================================================
   generate-report:
-    name: Generate Allure Report
+    name: Generate and Deploy Allure Report
     runs-on: ubuntu-latest
     needs: api-tests
     if: always()
+
     steps:
+
+      # 1. Check out the repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2. Download the raw Allure results uploaded by the test job
       - name: Download Allure Results
         uses: actions/download-artifact@v4
         with:
           name: allure-results
           path: target/allure-results
 
+      # 3. Generate the interactive Allure HTML report
+      #    keep_reports: 20 means it keeps the last 20 run histories for the trend chart
       - name: Generate Allure Report
         uses: simple-elf/allure-report-action@master
         with:
@@ -389,6 +442,8 @@ jobs:
           allure_history: allure-history
           keep_reports: 20
 
+      # 4. Deploy the generated report to the gh-pages branch
+      #    This is what makes it publicly accessible at your GitHub Pages URL
       - name: Deploy Allure Report to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
@@ -396,13 +451,46 @@ jobs:
           publish_branch: gh-pages
           publish_dir: allure-history
 
+  # ============================================================
+  # JOB 3 — Build and Push Docker Image
+  # ============================================================
   docker-build:
-    name: Docker Build
+    name: Docker Build and Push
     runs-on: ubuntu-latest
     needs: api-tests
+    if: github.ref == 'refs/heads/main'
+
     steps:
+
+      # 1. Check out the repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build Docker image
-        run: docker build --target builder -t api-tests .
+      # 2. Log in to GitHub Container Registry
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 3. Set up Docker Buildx for multi-platform builds
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 4. Convert repo name to lowercase — GHCR requires lowercase image names
+      - name: Set lowercase image name
+        run: echo "IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
+      # 5. Build the image and push it to GHCR
+      #    Tagged with both :latest and the specific commit SHA for traceability
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

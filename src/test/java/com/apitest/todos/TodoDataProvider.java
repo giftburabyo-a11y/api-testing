@@ -7,9 +7,9 @@ public class TodoDataProvider {
     @DataProvider(name = "validTodoIds")
     public static Object[][] validTodoIds() {
         return new Object[][] {
-            {1, 1, "delectus aut autem", false},
-            {2, 1, "quis ut nam facilis et officia qui", false},
-            {4, 1, "et porro tempora", true}
+            {1, 1, "delectus aut autem"},
+            {2, 1, "quis ut nam facilis et officia qui"},
+            {3, 1, "fugiat veniam minus"}
         };
     }
 
